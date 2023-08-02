@@ -2,7 +2,7 @@
 
 from models import db, Episode, Guest, Appearance
 from flask_migrate import Migrate
-from flask import Flask, jsonify, request, make_response
+from flask import Flask, request, make_response
 from flask_restful import Api, Resource
 import os
     
@@ -15,10 +15,11 @@ app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.json.compact = False
 
-migrate = Migrate(app, db)
-db.init_app(app)
-
 api = Api(app)
+
+migrate = Migrate(app, db)
+
+db.init_app(app)
 
 @app.route('/')
 def index():
@@ -27,21 +28,14 @@ def index():
 class Episodes(Resource):
     def get(self):
         episodes = [episode.to_dict() for episode in Episode.query.all()]
+        return make_response(episodes, 200)
 
-        return make_response(
-            episodes,
-            200
-        )
-    
 class EpisodeByID(Resource):
     def get(self, id):
-        episode = Episode.query.filter_by(id = id).first().to_dict()
+        episode = Episode.query.filter_by(id = id).first()
 
         if episode:
-            return make_response(
-                episode,
-                200
-            )
+            return make_response(episode.to_dict(), 200)
         else:
             return make_response(
                 {
@@ -54,25 +48,14 @@ class EpisodeByID(Resource):
         episode = Episode.query.filter_by(id = id).first()
 
         if episode:
-            for appearance in episode.appearances:
-                db.session.delete(appearance)
-                db.session.commit()
-
             db.session.delete(episode)
             db.session.commit()
-
-            return make_response({}, 204)
-        else:
-            return make_response(
-                {
-                    "error": "Episode not found"
-                }, 200
-            )
+            return make_response('', 204)
+        return make_response({"error": "Episode not found"}, 200)
         
 class Guests(Resource):
     def get(self):
-        guests = [guest.to_dict() for guest in Guest.query.all()]
-
+        guests = [guest.to_dict(rules=('-appearances',)) for guest in Guest.query.all()]
         return make_response(guests, 200)
     
 class Appearances(Resource):
@@ -81,19 +64,21 @@ class Appearances(Resource):
         return make_response(appearances, 200)
 
     def post(self):
-        new_appearance = Appearance(
-            rating = request.form["rating"],
-            episode_id = request.form["episode_id"],
-            guest_id = request.form["guest_id"]
-        )
+        try:
+            new_appearance = Appearance(
+                rating = request.json["rating"],
+                episode_id = request.json["episode_id"],
+                guest_id = request.json["guest_id"],
+            )
 
-        db.session.add(new_appearance)
-        db.session.commit()
+            db.session.add(new_appearance)
+            db.session.commit()
 
-        new_appearance_dict = new_appearance.to_dict()
+            new_appearance_dict = new_appearance.to_dict()
 
-        return make_response(new_appearance_dict, 201)
-
+            return make_response(new_appearance_dict, 201)
+        except ValueError:
+            return make_response({"errors":["validaition errors"]}, 400)
 
 api.add_resource(Episodes, '/episodes')
 api.add_resource(EpisodeByID, '/episodes/<int:id>')
