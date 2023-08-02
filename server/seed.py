@@ -55,7 +55,7 @@ if __name__ == '__main__':
     clear_database()
 
     print("Opening CSV...")
-    with open('server/seed.csv', newline='') as csvfile:
+    with open('./seed.csv', newline='') as csvfile:
         rows = [row for row in csv.reader(csvfile, delimiter=',', quotechar='|')]
         print("Seeding episodes...")
         episodes = create_episodes(rows)

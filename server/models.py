@@ -12,7 +12,6 @@ metadata = MetaData(naming_convention={
 
 db = SQLAlchemy(metadata=metadata)
 
-
 class Episode(db.Model, SerializerMixin):
     __tablename__ = 'episodes'
 
@@ -20,10 +19,9 @@ class Episode(db.Model, SerializerMixin):
     date = db.Column(db.String)
     number = db.Column(db.Integer)
 
-    # add relationship
+    appearances = db.relationship('Appearance', backref='episode')
     
-    # add serialization rules
-    
+    serialize_rules = ('-appearances.episode')
 
 class Guest(db.Model, SerializerMixin):
     __tablename__ = 'guests'
@@ -32,10 +30,9 @@ class Guest(db.Model, SerializerMixin):
     name = db.Column(db.String)
     occupation = db.Column(db.String)
 
-    # add relationship
+    appearances = db.relationship('Appearance', backref='guest')
     
-    # add serialization rules
-    
+    serialize_rules = ('-appearances.guest')
 
 class Appearance(db.Model, SerializerMixin):
     __tablename__ = 'appearances'
@@ -43,10 +40,17 @@ class Appearance(db.Model, SerializerMixin):
     id = db.Column(db.Integer, primary_key=True)
     rating = db.Column(db.Integer)
 
-    # add relationships
+    episode_id = db.Column(db.Integer, db.ForeignKey('episodes.id'))
+    guest_id = db.Column(db.Integer, db.ForeignKey('guests.id'))
     
-    # add serialization rules
+    serialize_rules = ('-episode.appearances','-guest.appearances')
     
-    # add validation
-    
-# add any models you may need.
+    @validates('rating')
+    def validate_rating(self, key, rating):
+        flag = True
+        if rating >= 1 and rating <= 5:
+            flag = False
+
+        if flag:
+            raise ValueError
+        return rating
